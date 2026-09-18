@@ -10,7 +10,6 @@ import {
   Power,
   Smartphone,
   Cpu,
-  Sparkles,
 } from 'lucide-react';
 import { BleDeviceInfo, BluetoothMode, ConnectionState } from '../types';
 
@@ -73,34 +72,15 @@ export const DevicePanel: React.FC<DevicePanelProps> = ({
 
           {/* Mode Badge */}
           <div className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60 flex items-center gap-1">
-            {mode === 'web-bluetooth' && <Smartphone className="h-3 w-3" />}
-            {mode === 'android-bridge' && <Cpu className="h-3 w-3" />}
-            {mode === 'simulation' && <Sparkles className="h-3 w-3" />}
+            {mode === 'web-bluetooth' ? <Smartphone className="h-3 w-3" /> : <Cpu className="h-3 w-3" />}
             <span>
-              {mode === 'web-bluetooth'
-                ? 'Web 蓝牙 (真机)'
-                : mode === 'android-bridge'
-                ? '安卓原生桥接'
-                : '虚拟心率测试'}
+              {mode === 'web-bluetooth' ? 'Web 蓝牙 (真机)' : '安卓原生桥接'}
             </span>
           </div>
         </div>
 
         {/* Mode Selector Tabs */}
-        <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/70 rounded-xl mb-4 text-xs font-medium">
-          <button
-            id="tab-sim-btn"
-            type="button"
-            onClick={() => onSelectMode('simulation')}
-            className={`py-2 px-1 text-center rounded-lg transition-all flex flex-col items-center gap-1 ${
-              mode === 'simulation'
-                ? 'bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-xs font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>模拟测试</span>
-          </button>
+        <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/70 rounded-xl mb-4 text-xs font-medium">
           <button
             id="tab-webble-btn"
             type="button"
@@ -112,7 +92,7 @@ export const DevicePanel: React.FC<DevicePanelProps> = ({
             }`}
           >
             <Smartphone className="h-3.5 w-3.5" />
-            <span>Web 蓝牙</span>
+            <span>Web 蓝牙 (浏览器)</span>
           </button>
           <button
             id="tab-android-btn"
@@ -125,7 +105,7 @@ export const DevicePanel: React.FC<DevicePanelProps> = ({
             }`}
           >
             <Cpu className="h-3.5 w-3.5" />
-            <span>安卓原生</span>
+            <span>安卓原生桥接 (App)</span>
           </button>
         </div>
 
@@ -213,10 +193,8 @@ export const DevicePanel: React.FC<DevicePanelProps> = ({
                 <Bluetooth className="h-4 w-4" />
                 <span>
                   {mode === 'web-bluetooth'
-                    ? '搜索并连接 BLE 心率设备'
-                    : mode === 'android-bridge'
-                    ? '调用安卓原生蓝牙接口'
-                    : '连接虚拟测试心率设备'}
+                    ? '搜索并连接 BLE 蓝牙心率设备'
+                    : '调用安卓原生蓝牙接口连接'}
                 </span>
               </>
             )}
@@ -227,9 +205,7 @@ export const DevicePanel: React.FC<DevicePanelProps> = ({
         <p className="text-[11px] text-center text-slate-400">
           {mode === 'web-bluetooth'
             ? '支持 Android Chrome / Edge 浏览器直连蓝牙，需开启手机蓝牙与定位权限'
-            : mode === 'android-bridge'
-            ? '运行于包含 window.AndroidBridge 的 Android WebView 原生应用中'
-            : '无需任何实体蓝牙硬件，可在当前网页或 iframe 预览中无缝体验所有功能'}
+            : '运行于包含 window.AndroidBridge 的 Android 原生 WebView App 中'}
         </p>
       </div>
     </div>

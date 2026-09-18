@@ -1,6 +1,6 @@
 import React from 'react';
-import { Heart, Activity, Zap, CheckCircle2, AlertCircle } from 'lucide-react';
-import { HeartRateReading, HeartRateZone, BluetoothMode } from '../types';
+import { Heart, Activity, CheckCircle2, AlertCircle } from 'lucide-react';
+import { HeartRateReading, HeartRateZone } from '../types';
 
 interface HeartRateDisplayProps {
   reading: HeartRateReading | null;
@@ -9,8 +9,6 @@ interface HeartRateDisplayProps {
   maxBpm: number;
   avgBpm: number;
   hrv: number | null;
-  mode: BluetoothMode;
-  onSimulateBpmChange: (bpm: number) => void;
   isConnected: boolean;
 }
 
@@ -21,20 +19,10 @@ export const HeartRateDisplay: React.FC<HeartRateDisplayProps> = ({
   maxBpm,
   avgBpm,
   hrv,
-  mode,
-  onSimulateBpmChange,
   isConnected,
 }) => {
   const bpm = isConnected && reading ? reading.bpm : 0;
   const pulseDuration = bpm > 30 ? (60 / bpm).toFixed(2) : '1.0';
-
-  const presets = [
-    { label: '静息', bpm: 62 },
-    { label: '热身', bpm: 95 },
-    { label: '燃脂', bpm: 125 },
-    { label: '有氧', bpm: 145 },
-    { label: '冲刺', bpm: 178 },
-  ];
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
@@ -145,44 +133,6 @@ export const HeartRateDisplay: React.FC<HeartRateDisplayProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Simulation Controls (Visible when in simulation mode) */}
-      {mode === 'simulation' && (
-        <div className="mt-4 pt-3 border-t border-dashed border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-            <span className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
-              <Zap className="h-3 w-3 text-amber-500" />
-              虚拟心率模拟调控:
-            </span>
-            <span className="font-semibold text-rose-500">{bpm || 72} BPM</span>
-          </div>
-
-          {/* Presets */}
-          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-            {presets.map((p) => (
-              <button
-                key={p.label}
-                id={`sim-preset-${p.bpm}`}
-                type="button"
-                onClick={() => onSimulateBpmChange(p.bpm)}
-                className="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 transition-colors"
-              >
-                {p.label} ({p.bpm})
-              </button>
-            ))}
-          </div>
-
-          <input
-            id="simulation-bpm-slider"
-            type="range"
-            min="50"
-            max="195"
-            value={bpm || 72}
-            onChange={(e) => onSimulateBpmChange(Number(e.target.value))}
-            className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-rose-500"
-          />
-        </div>
-      )}
     </div>
   );
 };

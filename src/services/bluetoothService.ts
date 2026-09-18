@@ -19,19 +19,19 @@ export class BluetoothService {
   private gattServer: any = null;
   private hrCharacteristic: any = null;
   private batteryCharacteristic: any = null;
-  private simulationInterval: any = null;
-  private simulatedBpm: number = 72;
-  private simulatedBattery: number = 95;
 
   private onReadingCallback?: (reading: HeartRateReading) => void;
   private onStateChangeCallback?: (state: ConnectionState, message?: string) => void;
   private onDeviceInfoCallback?: (info: BleDeviceInfo) => void;
 
-  public currentMode: BluetoothMode = 'simulation';
+  public currentMode: BluetoothMode = 'web-bluetooth';
   public currentState: ConnectionState = 'disconnected';
 
   constructor() {
     this.setupAndroidCallbacks();
+    if (this.isAndroidBridgeAvailable()) {
+      this.currentMode = 'android-bridge';
+    }
   }
 
   public setCallbacks(
@@ -119,7 +119,7 @@ export class BluetoothService {
   /**
    * Connect based on mode
    */
-  public async connect(mode: BluetoothMode, simulatedTargetBpm: number = 75): Promise<void> {
+  public async connect(mode: BluetoothMode): Promise<void> {
     this.currentMode = mode;
     this.disconnect();
 
@@ -127,8 +127,6 @@ export class BluetoothService {
       await this.connectAndroidBridge();
     } else if (mode === 'web-bluetooth') {
       await this.connectWebBluetooth();
-    } else {
-      this.startSimulation(simulatedTargetBpm);
     }
   }
 
@@ -139,7 +137,7 @@ export class BluetoothService {
     if (!this.isWebBluetoothAvailable()) {
       this.updateState(
         'error',
-        '当前浏览器不支持 Web Bluetooth API。请使用安卓 Chrome 浏览器、Edge 或在设置中切换为模拟/安卓原生模式。'
+        '当前浏览器不支持 Web Bluetooth API。请使用安卓 Chrome 浏览器、Edge 或切换为安卓原生模式。'
       );
       return;
     }
@@ -254,7 +252,7 @@ export class BluetoothService {
       } else if (isIframeBlocked) {
         this.updateState(
           'error',
-          '浏览器限制：内嵌 iframe 窗口无法直接调用蓝牙权限。请点击右上角【新标签页打开】以使用真机蓝牙，或切换至模拟/安卓原生模式。'
+          '浏览器限制：内嵌 iframe 窗口无法直接调用蓝牙权限。请点击右上角【新标签页打开】以使用真机蓝牙，或在 Android WebView 原生 App 中运行。'
         );
       } else {
         this.updateState('error', `蓝牙连接失败: ${err.message || '未知错误'}`);
@@ -271,7 +269,7 @@ export class BluetoothService {
     if (!bridge) {
       this.updateState(
         'error',
-        '未检测到 Android 原生桥接对象 (window.AndroidBridge)。请在 Android 原生 WebView App 中打开此页面，或在模拟器中注入 JavascriptInterface。'
+        '未检测到 Android 原生桥接对象 (window.AndroidBridge)。请在已集成蓝牙接口的 Android 原生 WebView App 中打开此页面。'
       );
       return;
     }
@@ -289,7 +287,7 @@ export class BluetoothService {
           id: 'android-ble-bridge',
           name: 'Android Native BLE Host',
           connected: true,
-          batteryLevel: 92,
+          batteryLevel: null,
           sensorLocation: '原生底层适配',
           mode: 'android-bridge',
         });
@@ -299,63 +297,7 @@ export class BluetoothService {
     }
   }
 
-  /**
-   * High-fidelity simulation mode for instant browser & iframe testing
-   */
-  private startSimulation(initialBpm: number = 75): void {
-    this.simulatedBpm = initialBpm;
-    this.simulatedBattery = 98;
-    this.updateState('connecting', '正在启动模拟蓝牙心率设备...');
-
-    setTimeout(() => {
-      this.updateState('connected', '已连接虚拟心率设备 (Polar H10 模拟器)');
-
-      if (this.onDeviceInfoCallback) {
-        this.onDeviceInfoCallback({
-          id: 'sim-polar-h10',
-          name: 'Polar H10 心率带 (模拟)',
-          connected: true,
-          batteryLevel: this.simulatedBattery,
-          sensorLocation: '胸部 (Chest)',
-          mode: 'simulation',
-        });
-      }
-
-      let tick = 0;
-      this.simulationInterval = setInterval(() => {
-        tick++;
-        // Natural physiological respiratory sinus arrhythmia (RSA) and slight random drift
-        const variation = Math.sin(tick / 5) * 3 + (Math.random() * 2 - 1);
-        const currentBpm = Math.max(50, Math.min(195, Math.round(this.simulatedBpm + variation)));
-        const rrMs = Math.round(60000 / currentBpm + (Math.random() * 20 - 10));
-
-        if (tick % 100 === 0 && this.simulatedBattery > 10) {
-          this.simulatedBattery -= 1;
-        }
-
-        if (this.onReadingCallback) {
-          this.onReadingCallback({
-            bpm: currentBpm,
-            timestamp: Date.now(),
-            rrIntervals: [rrMs],
-            energyExpended: Math.round(tick * 0.15),
-            sensorContact: true,
-          });
-        }
-      }, 1000);
-    }, 600);
-  }
-
-  public setSimulatedTargetBpm(bpm: number) {
-    this.simulatedBpm = Math.max(50, Math.min(200, bpm));
-  }
-
   public disconnect(): void {
-    if (this.simulationInterval) {
-      clearInterval(this.simulationInterval);
-      this.simulationInterval = null;
-    }
-
     if (this.currentMode === 'android-bridge') {
       try {
         const bridge = window.AndroidBridge || window.AndroidBle;

@@ -102,18 +102,6 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Mode Pill Switcher */}
           <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium">
             <button
-              id="mode-sim-btn"
-              type="button"
-              onClick={() => onSelectMode('simulation')}
-              className={`px-2.5 py-1.5 rounded-lg transition-all ${
-                mode === 'simulation'
-                  ? 'bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-xs font-semibold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              模拟测试
-            </button>
-            <button
               id="mode-webble-btn"
               type="button"
               onClick={() => onSelectMode('web-bluetooth')}

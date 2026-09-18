@@ -22,7 +22,11 @@ import { AndroidNativeGuideModal } from './components/AndroidNativeGuideModal';
 import { IframeWarningBanner } from './components/IframeWarningBanner';
 
 export default function App() {
-  const [mode, setMode] = useState<BluetoothMode>('simulation');
+  const initialMode: BluetoothMode = useMemo(
+    () => (bluetoothService.isAndroidBridgeAvailable() ? 'android-bridge' : 'web-bluetooth'),
+    []
+  );
+  const [mode, setMode] = useState<BluetoothMode>(initialMode);
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [stateMessage, setStateMessage] = useState<string>('');
   const [reading, setReading] = useState<HeartRateReading | null>(null);
@@ -104,8 +108,10 @@ export default function App() {
       }
     );
 
-    // Default start simulation on load for immediate interactive feedback
-    bluetoothService.connect('simulation', 74);
+    // Auto-connect to Android Native Bridge if available in Android WebView
+    if (bluetoothService.isAndroidBridgeAvailable()) {
+      bluetoothService.connect('android-bridge');
+    }
 
     return () => {
       bluetoothService.disconnect();
@@ -168,24 +174,20 @@ export default function App() {
   // Mode Selection Handler
   const handleSelectMode = useCallback((newMode: BluetoothMode) => {
     setMode(newMode);
+    bluetoothService.disconnect();
     setReading(null);
     setMinBpm(0);
     setMaxBpm(0);
     setBpmHistory([]);
     setRrBuffer([]);
-    bluetoothService.connect(newMode, 75);
   }, []);
 
   const handleConnect = useCallback(() => {
-    bluetoothService.connect(mode, reading?.bpm || 75);
-  }, [mode, reading?.bpm]);
+    bluetoothService.connect(mode);
+  }, [mode]);
 
   const handleDisconnect = useCallback(() => {
     bluetoothService.disconnect();
-  }, []);
-
-  const handleSimulateBpmChange = useCallback((targetBpm: number) => {
-    bluetoothService.setSimulatedTargetBpm(targetBpm);
   }, []);
 
   // Session Controls
@@ -276,9 +278,7 @@ export default function App() {
       />
 
       {/* Iframe Warning Banner (if browser restrictions apply) */}
-      {isIframe && (
-        <IframeWarningBanner mode={mode} onSelectMode={handleSelectMode} />
-      )}
+      {isIframe && <IframeWarningBanner />}
 
       {/* Main Content Layout */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -292,8 +292,6 @@ export default function App() {
               maxBpm={maxBpm}
               avgBpm={avgBpm}
               hrv={hrv}
-              mode={mode}
-              onSimulateBpmChange={handleSimulateBpmChange}
               isConnected={connectionState === 'connected'}
             />
           </div>
