@@ -1,4 +1,4 @@
-export type BluetoothMode = 'web-bluetooth' | 'android-bridge';
+export type BluetoothMode = 'web-bluetooth' | 'capacitor-ble' | 'android-bridge';
 
 export type ConnectionState = 'disconnected' | 'scanning' | 'connecting' | 'connected' | 'error';
 

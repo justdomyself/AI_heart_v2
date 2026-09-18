@@ -10,10 +10,54 @@ export const AndroidNativeGuideModal: React.FC<AndroidNativeGuideModalProps> = (
   isOpen,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<'manifest' | 'kotlin-ble' | 'bridge' | 'overview'>('overview');
+  const [activeTab, setActiveTab] = useState<'capacitor' | 'manifest' | 'kotlin-ble' | 'bridge' | 'overview'>('capacitor');
   const [copiedTab, setCopiedTab] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const capacitorCode = `# ===================================================
+# 🚀 Capacitor Android APK 打包全套指令
+# ===================================================
+
+# 步骤 1：安装依赖 (已在代码中适配 @capacitor-community/bluetooth-le)
+npm install
+npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor-community/bluetooth-le
+
+# 步骤 2：构建前端静态页面 (生成 dist 目录)
+npm run build
+
+# 步骤 3：生成并同步 Android 工程 (已预配 capacitor.config.ts)
+npx cap add android
+npx cap sync android
+
+# ===================================================
+# 步骤 4：【至关重要】配置 Android 蓝牙与定位权限
+# 请打开 android/app/src/main/AndroidManifest.xml 文件，
+# 在 <manifest> 标签内部添加以下权限声明：
+# ===================================================
+<!-- Android 12+ (API 31+) 必须权限 -->
+<uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+<!-- Android 11 及更低版本兼容 -->
+<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+<!-- 声明 BLE 硬件特性 -->
+<uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
+
+# ===================================================
+# 步骤 5：编译打包生成 APK
+# ===================================================
+cd android
+./gradlew assembleDebug
+
+# 生成好的 APK 位于：
+# android/app/build/outputs/apk/debug/app-debug.apk
+# Windows PowerShell 中打开文件夹：
+explorer.exe app\\build\\outputs\\apk\\debug`;
 
   const manifestCode = `<!-- AndroidManifest.xml (Android 6.0 ~ Android 14+ 完整权限配置) -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -277,11 +321,23 @@ class MainActivity : AppCompatActivity() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center px-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 gap-2 pt-2">
+        <div className="flex items-center px-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 gap-2 pt-2 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('capacitor')}
+            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
+              activeTab === 'capacitor'
+                ? 'border-purple-500 text-purple-600 dark:text-purple-400'
+                : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span>Capacitor 打包 APK (推荐)</span>
+          </button>
           <button
             type="button"
             onClick={() => setActiveTab('overview')}
-            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
               activeTab === 'overview'
                 ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
                 : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
@@ -293,7 +349,7 @@ class MainActivity : AppCompatActivity() {
           <button
             type="button"
             onClick={() => setActiveTab('kotlin-ble')}
-            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
               activeTab === 'kotlin-ble'
                 ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
                 : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
@@ -305,7 +361,7 @@ class MainActivity : AppCompatActivity() {
           <button
             type="button"
             onClick={() => setActiveTab('bridge')}
-            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
               activeTab === 'bridge'
                 ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
                 : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
@@ -317,7 +373,7 @@ class MainActivity : AppCompatActivity() {
           <button
             type="button"
             onClick={() => setActiveTab('manifest')}
-            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
               activeTab === 'manifest'
                 ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
                 : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
@@ -330,6 +386,49 @@ class MainActivity : AppCompatActivity() {
 
         {/* Tab Content */}
         <div className="p-6 overflow-y-auto flex-1 bg-slate-50 dark:bg-slate-950/60 font-sans text-xs">
+          {activeTab === 'capacitor' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-xs">
+                <div className="flex items-start gap-2.5">
+                  <ShieldCheck className="h-5 w-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <div className="font-bold text-slate-900 dark:text-white text-sm">
+                      已为你配置好 Capacitor 原生 BLE 驱动与代码映射
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-[11px]">
+                      前端已全面接入 <code>@capacitor-community/bluetooth-le</code>。按照下方命令打包后，安装至安卓手机即可直接利用原生蓝牙扫描与连接心率设备。
+                      <strong>【注意】</strong>：在运行 <code>./gradlew assembleDebug</code> 前，请务必在 <code>android/app/src/main/AndroidManifest.xml</code> 中加入蓝牙权限！
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative">
+                <div className="absolute top-2 right-2 z-10">
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(capacitorCode, 'capacitor')}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+                  >
+                    {copiedTab === 'capacitor' ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-emerald-400" />
+                        <span>已复制指令</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>复制打包指令</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <pre className="p-4 rounded-xl bg-slate-900 text-slate-200 font-mono text-[11px] leading-relaxed overflow-x-auto border border-slate-800">
+                  {capacitorCode}
+                </pre>
+              </div>
+            </div>
+          )}
           {activeTab === 'overview' && (
             <div className="space-y-4 max-w-3xl text-slate-700 dark:text-slate-300 leading-relaxed">
               <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">

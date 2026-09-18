@@ -8,6 +8,7 @@ interface HeaderProps {
   onSelectMode: (mode: BluetoothMode) => void;
   onOpenAndroidGuide: () => void;
   isIframe: boolean;
+  isCapacitorAvailable?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -16,6 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectMode,
   onOpenAndroidGuide,
   isIframe,
+  isCapacitorAvailable,
 }) => {
   const getStatusBadge = () => {
     switch (connectionState) {
@@ -111,7 +113,22 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
-              Web 蓝牙 (真机)
+              手机浏览器
+            </button>
+            <button
+              id="mode-capble-btn"
+              type="button"
+              onClick={() => onSelectMode('capacitor-ble')}
+              className={`px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
+                mode === 'capacitor-ble'
+                  ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-xs font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              <span>Capacitor APK</span>
+              {isCapacitorAvailable && (
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              )}
             </button>
             <button
               id="mode-android-btn"
@@ -123,7 +140,7 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
-              安卓原生桥接
+              WebView桥接
             </button>
           </div>
 

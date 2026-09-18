@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { BleClient, numberToUUID } from '@capacitor-community/bluetooth-le';
 import {
   BleDeviceInfo,
   BluetoothMode,
@@ -19,6 +21,7 @@ export class BluetoothService {
   private gattServer: any = null;
   private hrCharacteristic: any = null;
   private batteryCharacteristic: any = null;
+  private capacitorDeviceId: string | null = null;
 
   private onReadingCallback?: (reading: HeartRateReading) => void;
   private onStateChangeCallback?: (state: ConnectionState, message?: string) => void;
@@ -29,8 +32,23 @@ export class BluetoothService {
 
   constructor() {
     this.setupAndroidCallbacks();
-    if (this.isAndroidBridgeAvailable()) {
+    if (this.isCapacitorAvailable()) {
+      this.currentMode = 'capacitor-ble';
+    } else if (this.isAndroidBridgeAvailable()) {
       this.currentMode = 'android-bridge';
+    } else {
+      this.currentMode = 'web-bluetooth';
+    }
+  }
+
+  public isCapacitorAvailable(): boolean {
+    try {
+      return (
+        typeof window !== 'undefined' &&
+        (Boolean((window as any).Capacitor?.isNativePlatform?.()) || Capacitor.isNativePlatform())
+      );
+    } catch {
+      return false;
     }
   }
 
@@ -123,7 +141,9 @@ export class BluetoothService {
     this.currentMode = mode;
     this.disconnect();
 
-    if (mode === 'android-bridge') {
+    if (mode === 'capacitor-ble') {
+      await this.connectCapacitorBle();
+    } else if (mode === 'android-bridge') {
       await this.connectAndroidBridge();
     } else if (mode === 'web-bluetooth') {
       await this.connectWebBluetooth();
@@ -135,9 +155,20 @@ export class BluetoothService {
    */
   private async connectWebBluetooth(): Promise<void> {
     if (!this.isWebBluetoothAvailable()) {
+      const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+      const isWeChat = /MicroMessenger/i.test(ua);
+      const isIOS = /iPhone|iPad|iPod/i.test(ua);
+
+      let advice = '请使用安卓手机的 Chrome 或 Edge 浏览器打开（并开启手机蓝牙与系统位置/GPS权限）。';
+      if (isWeChat) {
+        advice = '微信内置浏览器不支持 Web 蓝牙。请点击右上角【···】，选择【在系统/默认浏览器打开】并使用 Chrome。';
+      } else if (isIOS) {
+        advice = 'iOS Safari 浏览器暂不开放 Web 蓝牙接口。建议使用安卓手机 Chrome 浏览器，或安装 Bluefy 等支持 BLE 的专用浏览器。';
+      }
+
       this.updateState(
         'error',
-        '当前浏览器不支持 Web Bluetooth API。请使用安卓 Chrome 浏览器、Edge 或切换为安卓原生模式。'
+        `当前浏览器不支持 Web 蓝牙 API。${advice}`
       );
       return;
     }
@@ -269,7 +300,7 @@ export class BluetoothService {
     if (!bridge) {
       this.updateState(
         'error',
-        '未检测到 Android 原生桥接对象 (window.AndroidBridge)。请在已集成蓝牙接口的 Android 原生 WebView App 中打开此页面。'
+        '未检测到 Android 原生桥接对象 (window.AndroidBridge)。您当前是在普通浏览器中访问，请切换至【手机浏览器直连】模式；若要使用此模式，需在打包了原生蓝牙插件的 Android WebView App 中运行。'
       );
       return;
     }
@@ -297,7 +328,135 @@ export class BluetoothService {
     }
   }
 
+  /**
+   * Connect via Capacitor Community Bluetooth LE Plugin (Android Native APK)
+   */
+  private async connectCapacitorBle(): Promise<void> {
+    try {
+      this.updateState('connecting', '正在初始化 Android 原生蓝牙与权限...');
+
+      try {
+        await BleClient.initialize();
+      } catch (initErr) {
+        console.warn('BleClient initialize warning:', initErr);
+      }
+
+      // Check if Bluetooth is enabled
+      try {
+        const enabled = await BleClient.isEnabled();
+        if (!enabled) {
+          try {
+            await BleClient.requestEnable();
+          } catch {
+            this.updateState('error', '请先在手机系统设置中开启蓝牙与定位');
+            return;
+          }
+        }
+      } catch {
+        // Continue if check unsupported
+      }
+
+      this.updateState('scanning', '正在扫描心率设备 (请在弹出列表中选择)...');
+
+      // Heart Rate Service UUID: 0x180D, Battery: 0x180F
+      const HR_SERVICE = numberToUUID(0x180d);
+      const HR_MEASUREMENT = numberToUUID(0x2a37);
+      const BATTERY_SERVICE = numberToUUID(0x180f);
+      const BATTERY_LEVEL = numberToUUID(0x2a19);
+
+      let device;
+      try {
+        device = await BleClient.requestDevice({
+          services: [HR_SERVICE],
+          optionalServices: [BATTERY_SERVICE, numberToUUID(0x180a)],
+        });
+      } catch (reqErr: any) {
+        if (reqErr?.message?.includes('cancel') || reqErr?.message?.includes('canceled')) {
+          this.updateState('disconnected', '已取消蓝牙设备选择');
+          return;
+        }
+        // If filtering by service didn't show the device, scan without service filter
+        device = await BleClient.requestDevice({
+          optionalServices: [HR_SERVICE, BATTERY_SERVICE],
+        });
+      }
+
+      if (!device || !device.deviceId) {
+        this.updateState('disconnected', '未选中心率设备');
+        return;
+      }
+
+      this.capacitorDeviceId = device.deviceId;
+      this.updateState('connecting', `正在连接到 ${device.name || '心率设备'}...`);
+
+      await BleClient.connect(device.deviceId, () => {
+        this.updateState('disconnected', '蓝牙设备已断开连接');
+        this.cleanup();
+      });
+
+      // Start notifications for Heart Rate
+      await BleClient.startNotifications(
+        device.deviceId,
+        HR_SERVICE,
+        HR_MEASUREMENT,
+        (dataView: DataView) => {
+          const reading = parseHeartRateMeasurement(dataView);
+          if (this.onReadingCallback) {
+            this.onReadingCallback(reading);
+          }
+        }
+      );
+
+      // Read battery level if available
+      let batteryLevel: number | null = null;
+      try {
+        const batVal = await BleClient.read(device.deviceId, BATTERY_SERVICE, BATTERY_LEVEL);
+        batteryLevel = batVal.getUint8(0);
+      } catch {
+        // Battery service not present on all devices
+      }
+
+      this.updateState('connected', `已成功连接到 ${device.name || 'BLE 心率设备'}`);
+
+      if (this.onDeviceInfoCallback) {
+        this.onDeviceInfoCallback({
+          id: device.deviceId,
+          name: device.name || 'Capacitor BLE 设备',
+          connected: true,
+          batteryLevel,
+          sensorLocation: '胸部/手腕',
+          mode: 'capacitor-ble',
+        });
+      }
+    } catch (err: any) {
+      console.warn('Capacitor BLE connection error:', err);
+      const isUserCancel =
+        err?.message?.includes('cancelled') ||
+        err?.message?.includes('canceled') ||
+        err?.name === 'NotFoundError';
+
+      if (isUserCancel) {
+        this.updateState('disconnected', '已取消选择');
+      } else {
+        this.updateState(
+          'error',
+          `Capacitor 原生蓝牙错误: ${err.message || '请确保手机已授予蓝牙和定位权限'}`
+        );
+      }
+      this.cleanup();
+    }
+  }
+
   public disconnect(): void {
+    if (this.capacitorDeviceId) {
+      try {
+        BleClient.disconnect(this.capacitorDeviceId).catch(() => {});
+      } catch (e) {
+        console.warn('Capacitor disconnect error', e);
+      }
+      this.capacitorDeviceId = null;
+    }
+
     if (this.currentMode === 'android-bridge') {
       try {
         const bridge = window.AndroidBridge || window.AndroidBle;

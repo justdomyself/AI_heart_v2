@@ -22,10 +22,12 @@ import { AndroidNativeGuideModal } from './components/AndroidNativeGuideModal';
 import { IframeWarningBanner } from './components/IframeWarningBanner';
 
 export default function App() {
-  const initialMode: BluetoothMode = useMemo(
-    () => (bluetoothService.isAndroidBridgeAvailable() ? 'android-bridge' : 'web-bluetooth'),
-    []
-  );
+  const isCapacitorAvailable = useMemo(() => bluetoothService.isCapacitorAvailable(), []);
+  const initialMode: BluetoothMode = useMemo(() => {
+    if (bluetoothService.isCapacitorAvailable()) return 'capacitor-ble';
+    if (bluetoothService.isAndroidBridgeAvailable()) return 'android-bridge';
+    return 'web-bluetooth';
+  }, []);
   const [mode, setMode] = useState<BluetoothMode>(initialMode);
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [stateMessage, setStateMessage] = useState<string>('');
@@ -275,6 +277,7 @@ export default function App() {
         onSelectMode={handleSelectMode}
         onOpenAndroidGuide={() => setShowAndroidGuide(true)}
         isIframe={isIframe}
+        isCapacitorAvailable={isCapacitorAvailable}
       />
 
       {/* Iframe Warning Banner (if browser restrictions apply) */}
@@ -315,6 +318,7 @@ export default function App() {
             onSelectMode={handleSelectMode}
             isWebBleAvailable={isWebBleAvailable}
             isAndroidBridgeAvailable={isAndroidBridgeAvailable}
+            isCapacitorAvailable={isCapacitorAvailable}
           />
 
           <HeartRateZones
