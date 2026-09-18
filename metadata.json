@@ -1,0 +1,6 @@
+{
+  "name": "BLE 心率监测器",
+  "description": "支持 Web Bluetooth 与安卓原生蓝牙的高精度心率监测应用，提供实时心率、心电波形、心率区间与安卓原生开发桥接",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
